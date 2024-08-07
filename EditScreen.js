@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, Button, StyleSheet, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Button, StyleSheet, ScrollView } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { Calendar } from 'react-native-calendars';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Calendar } from 'react-native-calendars';
 
-const AddScreen = ({ navigation }) => {
+const EditScreen = ({ route, navigation }) => {
+  const { taskId } = route.params;
   const [taskName, setTaskName] = useState('');
   const [timeEstimate, setTimeEstimate] = useState('');
   const [priority, setPriority] = useState('');
@@ -15,67 +15,62 @@ const AddScreen = ({ navigation }) => {
   const [startTime, setStartTime] = useState(new Date());
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
 
+  useEffect(() => {
+    const loadTask = async () => {
+      try {
+        const storedTasks = await AsyncStorage.getItem('tasks');
+        const tasks = storedTasks ? JSON.parse(storedTasks) : [];
+        const task = tasks.find(t => t.id === taskId);
+        if (task) {
+          setTaskName(task.name);
+          setTimeEstimate(task.timeEstimate);
+          setPriority(task.priority);
+          setCategory(task.category);
+          setDate(task.date);
+          setStartTime(new Date(`${task.date}T${task.startTime}`));
+        }
+      } catch (error) {
+        console.error('Failed to load task.', error);
+      }
+    };
+    loadTask();
+  }, [taskId]);
+
   const calculateEndTime = (startTime, duration) => {
     const endTime = new Date(startTime);
     endTime.setMinutes(endTime.getMinutes() + parseInt(duration));
     return endTime;
   };
 
-  const addTask = async () => {
+  const saveTask = async () => {
     try {
       const endTime = calculateEndTime(startTime, timeEstimate);
-      const newTask = {
-        id: Date.now(),
-        name: taskName,
-        timeEstimate,
-        priority,
-        category,
-        date,
-        startTime: startTime.toTimeString().split(' ')[0],
-        endTime: endTime.toTimeString().split(' ')[0],
-      };
-      let tasks = await AsyncStorage.getItem('tasks');
-      tasks = tasks ? JSON.parse(tasks) : [];
-      tasks.push(newTask);
-      await AsyncStorage.setItem('tasks', JSON.stringify(tasks));
-      setTaskName('');
-      setTimeEstimate('');
-      setPriority('');
-      setCategory('');
-      setDate(new Date().toISOString().split('T')[0]);
-      setStartTime(new Date());
-      navigation.navigate('Schedules');
+      const storedTasks = await AsyncStorage.getItem('tasks');
+      let tasks = storedTasks ? JSON.parse(storedTasks) : [];
+      const taskIndex = tasks.findIndex(t => t.id === taskId);
+      if (taskIndex > -1) {
+        tasks[taskIndex] = {
+          id: taskId,
+          name: taskName,
+          timeEstimate,
+          priority,
+          category,
+          date,
+          startTime: startTime.toTimeString().split(' ')[0],
+          endTime: endTime.toTimeString().split(' ')[0],
+        };
+        await AsyncStorage.setItem('tasks', JSON.stringify(tasks));
+        navigation.navigate('Schedules');
+      }
     } catch (error) {
-      console.error('Failed to add task.', error);
-    }
-  };
-
-  const fetchCanvasData = async () => {
-    try {
-      const response = await axios.get('https://canvas.instructure.com/api/v1/courses', {
-        headers: { Authorization: `Bearer YOUR_CANVAS_API_TOKEN` },
-      });
-      // Process the data and add tasks
-    } catch (error) {
-      Alert.alert('Error', 'Failed to fetch data from Canvas');
-    }
-  };
-
-  const fetchGoogleClassroomData = async () => {
-    try {
-      const response = await axios.get('https://classroom.googleapis.com/v1/courses', {
-        headers: { Authorization: `Bearer YOUR_GOOGLE_CLASSROOM_API_TOKEN` },
-      });
-      // Process the data and add tasks
-    } catch (error) {
-      Alert.alert('Error', 'Failed to fetch data from Google Classroom');
+      console.error('Failed to save task.', error);
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
-        <Text style={styles.header}>Add Task</Text>
+        <Text style={styles.header}>Edit Task</Text>
         <TextInput
           label="Task Name"
           value={taskName}
@@ -119,9 +114,7 @@ const AddScreen = ({ navigation }) => {
             }}
           />
         )}
-        <Button title="Add Task" onPress={addTask} />
-        <Button title="Fetch from Canvas" onPress={fetchCanvasData} />
-        <Button title="Fetch from Google Classroom" onPress={fetchGoogleClassroomData} />
+        <Button title="Save Task" onPress={saveTask} />
       </View>
     </ScrollView>
   );
@@ -150,4 +143,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AddScreen;
+export default EditScreen;

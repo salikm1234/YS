@@ -13,6 +13,7 @@ const EntryScreen = ({ navigation }) => {
   const [isLockedIn, setIsLockedIn] = useState(false);
 
   useEffect(() => {
+    
     const loadCurrentTask = async () => {
       const storedTasks = await AsyncStorage.getItem('tasks');
       if (storedTasks) {
@@ -35,9 +36,19 @@ const EntryScreen = ({ navigation }) => {
   };
 
   const endTaskEarly = async () => {
-    setCurrentTask('');
+    const storedTasks = await AsyncStorage.getItem('tasks');
+      if (storedTasks) {
+        const tasks = JSON.parse(storedTasks);
+        const filteredTasks = tasks.filter(task => task.name !== currentTask);
+        await AsyncStorage.setItem('tasks', JSON.stringify(filteredTasks));
+        if (tasks[0]){
+        setCurrentTask(tasks[0].name);}
+
+      }
+    
     setIsLockedIn(false);
     await AsyncStorage.setItem('isLockedIn', 'false');
+    
   };
 
   const addBreak = () => {

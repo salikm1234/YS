@@ -6,6 +6,7 @@ import EntryScreen from './EntryScreen';
 import SchedulesScreen from './SchedulesScreen';
 import AddScreen from './AddScreen';
 import ManualScreen from './ManualScreen';
+import EditScreen from './EditScreen';
 
 const Stack = createStackNavigator();
 
@@ -18,6 +19,7 @@ export default function App() {
           <Stack.Screen name="Schedules" component={SchedulesScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Add" component={AddScreen} />
           <Stack.Screen name="Manual" component={ManualScreen} />
+          <Stack.Screen name="Edit" component={EditScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </PaperProvider>

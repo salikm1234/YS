@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button, FlatList, StyleSheet, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import TaskItem from './TaskItem';
 import { Calendar } from 'react-native-calendars';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+
+const TaskItem = ({ task, onDelete, onEdit }) => {
+  return (
+    <View style={styles.taskContainer}>
+      <Text style={styles.taskText}>{task.name}</Text>
+      <Text style={styles.timeText}>{task.startTime} - {task.endTime}</Text>
+      <Button title="Edit" onPress={() => onEdit(task.id)} />
+      <Button title="Delete" onPress={() => onDelete(task.id)} />
+    </View>
+  );
+};
 
 const SchedulesScreen = ({ navigation }) => {
   const [tasks, setTasks] = useState([]);
@@ -24,9 +34,15 @@ const SchedulesScreen = ({ navigation }) => {
   }, []);
 
   const deleteTask = async (taskId) => {
-    const filteredTasks = tasks.filter(task => task.id !== taskId);
-    setTasks(filteredTasks);
-    await AsyncStorage.setItem('tasks', JSON.stringify(filteredTasks));
+    try {
+      const storedTasks = await AsyncStorage.getItem('tasks');
+      let tasksArray = storedTasks ? JSON.parse(storedTasks) : [];
+      tasksArray = tasksArray.filter(task => task.id !== taskId);
+      await AsyncStorage.setItem('tasks', JSON.stringify(tasksArray));
+      setTasks(tasksArray);
+    } catch (error) {
+      console.error('Failed to delete task.', error);
+    }
   };
 
   const shuffleTasks = () => {
@@ -34,8 +50,8 @@ const SchedulesScreen = ({ navigation }) => {
     setTasks(shuffledTasks);
   };
 
-  const editTask = async (taskId) => {
-    // Implement edit task logic
+  const editTask = (taskId) => {
+    navigation.navigate('Edit', { taskId });
   };
 
   const filteredTasks = tasks.filter(task => task.date === selectedDate);
@@ -45,10 +61,11 @@ const SchedulesScreen = ({ navigation }) => {
       <View style={styles.container}>
         <View style={styles.headerContainer}>
           <Ionicons name="chevron-back-outline" size={24} color="red" onPress={() => navigation.navigate('Entry')} />
-          <Text style={styles.header}>Aug 2024</Text>
+          <Text style={styles.header}>{new Date().toLocaleString('default', { month: 'long' })} {new Date().getFullYear()}</Text>
           <Ionicons name="calendar-outline" size={24} color="red" />
         </View>
         <Calendar
+          current={selectedDate}
           onDayPress={day => setSelectedDate(day.dateString)}
           markedDates={{ [selectedDate]: { selected: true } }}
           theme={{
@@ -95,6 +112,23 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 24,
     color: 'red',
+  },
+  taskContainer: {
+    padding: 10,
+    marginVertical: 5,
+    backgroundColor: '#1c1c1c',
+    borderRadius: 5,
+  },
+  taskText: {
+    color: 'white',
+    marginBottom: 5,
+  },
+  timeText: {
+    color: 'white',
+    marginBottom: 5,
+  },
+  button: {
+    marginTop: 5,
   },
 });
 

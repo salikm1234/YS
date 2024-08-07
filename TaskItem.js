@@ -1,41 +1,34 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Card, IconButton } from 'react-native-paper';
+import { View, Text, Button, StyleSheet } from 'react-native';
 
 const TaskItem = ({ task, onDelete, onEdit }) => {
   return (
-    <Card style={styles.card}>
-      <View style={styles.cardContent}>
-        <Text style={styles.title}>{task.name}</Text>
-        <Text style={styles.time}>{task.time}</Text>
-        <View style={styles.actions}>
-          <IconButton icon="delete" onPress={() => onDelete(task.id)} />
-          <IconButton icon="edit" onPress={() => onEdit(task.id)} />
-        </View>
-      </View>
-    </Card>
+    <View style={styles.taskContainer}>
+      <Text style={styles.taskText}>{task.name}</Text>
+      <Text style={styles.timeText}>{task.startTime} - {task.endTime}</Text>
+      <Button title="Edit" onPress={() => onEdit(task.id)} />
+      <Button title="Delete" onPress={() => onDelete(task.id)} />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    marginVertical: 8,
+  taskContainer: {
+    padding: 10,
+    marginVertical: 5,
+    backgroundColor: '#1c1c1c',
+    borderRadius: 5,
   },
-  cardContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
+  taskText: {
+    color: 'white',
+    marginBottom: 5,
   },
-  title: {
-    fontSize: 18,
+  timeText: {
+    color: 'white',
+    marginBottom: 5,
   },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  time: {
-    marginRight: 8,
+  button: {
+    marginTop: 5,
   },
 });
 
