@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, FlatList, Button, TextInput, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const daysOfWeek = ['S', 'M', 'Tu', 'W', 'T', 'F', 'Sa'];
 
 const SettingsScreen = () => {
   const [selectedDay, setSelectedDay] = useState('Sun');
@@ -214,19 +214,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   dayButton: {
-    flex: 1,
-    padding: 10,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    width: 35, // Set the width
+    height: 35, // Set the height equal to the width
+    borderRadius: 15, // Half of the width/height to make it a circle
+    justifyContent: 'center', // Center the text horizontally
+    alignItems: 'center', // Center the text vertically
+    backgroundColor: '#00BFFF', // Background color of the button
+    margin: 5, // Add some margin around each button
   },
   selectedDayButton: {
-    borderBottomColor: '#00BFFF',
+    backgroundColor: '#DDEFFF', // Change background color when selected
   },
   dayButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#333', // Text color
   },
   timePickerContainer: {
     marginBottom: 20,
