@@ -1,66 +1,111 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Button } from "react-native";
+import { View, Text, StyleSheet, Button, Alert } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const MODES = {
+  WORK: "Work Session",
+  BREAK: "Break",
+  BUSY: "Busy Time",
+  LIMBO: "Pause/Limbo",
+  LOCKED_IN: "Locked In",
+};
 
 const HomeScreen = () => {
-  const [mode, setMode] = useState("limbo"); // Modes: work, break, busy, limbo, locked
-  const [currentTask, setCurrentTask] = useState({
-    taskName: "Sample Task",
-    duration: 25, // in minutes
-  });
-  const [nextTask, setNextTask] = useState({
-    taskName: "Next Sample Task",
-    duration: 30, // in minutes
-  });
-  const [timeLeft, setTimeLeft] = useState(0); // Timer for current activity
-  const [isLockedIn, setIsLockedIn] = useState(false); // Lock-In Mode
-  const [stopwatchStartTime, setStopwatchStartTime] = useState(null); // Stopwatch for lock-in mode
+  const [mode, setMode] = useState(MODES.LIMBO);
+  const [currentTask, setCurrentTask] = useState(null);
+  const [nextTask, setNextTask] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(0); // Timer in seconds
+  const [isLockedIn, setIsLockedIn] = useState(false);
+  const [tasks, setTasks] = useState([]); // Store all tasks
+  const [intervalId, setIntervalId] = useState(null); // Timer interval reference
 
-  // Timer logic
+  useEffect(() => {
+    loadTasks(); // Load tasks from AsyncStorage when screen mounts
+  }, []);
+
   useEffect(() => {
     if (timeLeft > 0) {
-      const timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-
-      return () => clearInterval(timer);
-    } else if (timeLeft === 0 && mode === "work") {
-      setMode("break");
-      setTimeLeft(5 * 60); // Set a 5-minute break
+      const id = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
+      setIntervalId(id);
+      return () => clearTimeout(id);
+    } else if (timeLeft === 0 && mode !== MODES.LIMBO) {
+      handleModeTransition();
     }
   }, [timeLeft]);
 
+  const loadTasks = async () => {
+    try {
+      const storedTasks = await AsyncStorage.getItem("tasks");
+      const loadedTasks = storedTasks ? JSON.parse(storedTasks) : [];
+      setTasks(loadedTasks);
+      setCurrentTask(loadedTasks[0] || null);
+      setNextTask(loadedTasks[1] || null);
+    } catch (error) {
+      console.error("Error loading tasks:", error);
+      Alert.alert("Error", "Failed to load tasks.");
+    }
+  };
+
+  const startTimer = (duration) => {
+    setTimeLeft(duration * 60); // Convert minutes to seconds
+  };
+
   const handleStart = () => {
-    if (mode === "limbo" && currentTask) {
-      setMode("work");
-      setTimeLeft(currentTask.duration * 60); // Start the timer for the task
+    if (mode === MODES.LIMBO && currentTask) {
+      setMode(MODES.WORK);
+      startTimer(currentTask.duration);
     } else {
-      alert("No task to start!");
+      Alert.alert("No task to start!");
     }
   };
 
   const handleFinish = () => {
-    if (mode === "work") {
-      setMode("limbo"); // End the current work session
-      setTimeLeft(0);
-    } else if (mode === "break") {
-      setMode("work"); // Move to the next work session
-      setTimeLeft(currentTask ? currentTask.duration * 60 : 0);
+    clearInterval(intervalId);
+
+    // Remove finished task and move to next one
+    const remainingTasks = tasks.slice(1); // Remove the first task (currentTask)
+    setTasks(remainingTasks);
+
+    if (remainingTasks.length > 0) {
+      setCurrentTask(remainingTasks[0]); // Set the next task as current
+      setNextTask(remainingTasks[1] || null); // Set the task after that as next
+      setMode(MODES.LIMBO);
+      Alert.alert("Task Complete", "Moving to the next task.");
+    } else {
+      setCurrentTask(null);
+      setNextTask(null);
+      setMode(MODES.LIMBO);
+      Alert.alert("All Tasks Complete", "You have no more tasks.");
     }
+
+    setTimeLeft(0);
   };
 
   const handleNeedBreak = () => {
-    if (mode === "work") {
-      setMode("break");
-      setTimeLeft(5 * 60); // Set break to 5 minutes
+    clearInterval(intervalId);
+    if (mode === MODES.WORK) {
+      setMode(MODES.BREAK);
+      startTimer(5); // 5-minute break
     }
   };
 
-  const toggleLockIn = () => {
-    if (!isLockedIn) {
-      setIsLockedIn(true);
-      setStopwatchStartTime(Date.now());
-    } else {
-      setIsLockedIn(false);
+  const handleLockIn = () => {
+    setIsLockedIn(true);
+    setMode(MODES.LOCKED_IN);
+    setTimeLeft(0);
+  };
+
+  const handleUnlock = () => {
+    setIsLockedIn(false);
+    setMode(MODES.LIMBO);
+  };
+
+  const handleModeTransition = () => {
+    if (mode === MODES.WORK) {
+      setMode(MODES.BREAK);
+      startTimer(5); // Transition to 5-minute break
+    } else if (mode === MODES.BREAK) {
+      setMode(MODES.LIMBO);
     }
   };
 
@@ -74,35 +119,35 @@ const HomeScreen = () => {
     <View style={isLockedIn ? styles.lockedInContainer : styles.container}>
       {isLockedIn ? (
         <>
-          <Text style={styles.lockedInText}>Locked-In Mode</Text>
+          <Text style={styles.lockedInHeader}>Locked-In Mode</Text>
           <Text style={styles.timer}>{formatTime(timeLeft)}</Text>
-          <Button title="Unlock" onPress={toggleLockIn} color="#ff4d4d" />
+          <Button title="Unlock" onPress={handleUnlock} color="#ff4d4d" />
         </>
       ) : (
         <>
-          <Text style={styles.header}>Current Task</Text>
-          {currentTask ? (
-            <View style={styles.taskContainer}>
-              <Text style={styles.taskName}>{currentTask.taskName}</Text>
-              {mode !== "limbo" && <Text>Time Left: {formatTime(timeLeft)}</Text>}
-
-              {/* Buttons based on mode */}
-              {mode === "limbo" && <Button title="Start" onPress={handleStart} />}
-              {mode === "work" && <Button title="Finish" onPress={handleFinish} />}
-              {mode === "break" && <Button title="Finish Break" onPress={handleFinish} />}
-              {mode === "work" && <Button title="Need a Break" onPress={handleNeedBreak} />}
-              {mode === "work" && <Button title="Lock In" onPress={toggleLockIn} />}
-            </View>
-          ) : (
-            <Text>No task in progress.</Text>
-          )}
-          {nextTask && (
-            <View style={styles.nextTaskContainer}>
-              <Text style={styles.header}>Next Task</Text>
-              <Text>{nextTask.taskName}</Text>
-              <Text>Duration: {nextTask.duration} minutes</Text>
-            </View>
-          )}
+          <Text style={styles.header}>Current Mode: {mode}</Text>
+          <View style={styles.taskContainer}>
+            <Text style={styles.label}>Current Task:</Text>
+            <Text style={styles.taskText}>
+              {currentTask ? currentTask.taskName : "No current task"}
+            </Text>
+            <Text style={styles.timer}>Time Left: {formatTime(timeLeft)}</Text>
+          </View>
+          <View style={styles.taskContainer}>
+            <Text style={styles.label}>Next Task:</Text>
+            <Text>{nextTask ? nextTask.taskName : "None"}</Text>
+          </View>
+          <View style={styles.buttonsContainer}>
+            {mode === MODES.LIMBO && <Button title="Start Task" onPress={handleStart} />}
+            {mode === MODES.WORK && (
+              <>
+                <Button title="Finish Task" onPress={handleFinish} />
+                <Button title="Need a Break" onPress={handleNeedBreak} />
+                <Button title="Lock In" onPress={handleLockIn} />
+              </>
+            )}
+            {mode === MODES.BREAK && <Button title="Finish Break" onPress={handleFinish} />}
+          </View>
         </>
       )}
     </View>
@@ -112,8 +157,10 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#fff",
+    padding: 20,
   },
   lockedInContainer: {
     flex: 1,
@@ -121,8 +168,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#000",
   },
-  lockedInText: {
+  lockedInHeader: {
     fontSize: 28,
+    fontWeight: "bold",
     color: "#fff",
     marginBottom: 20,
   },
@@ -132,19 +180,30 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   taskContainer: {
-    marginBottom: 20,
+    marginVertical: 10,
+    padding: 15,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 10,
+    width: "90%",
   },
-  taskName: {
+  label: {
     fontSize: 18,
     fontWeight: "bold",
   },
+  taskText: {
+    fontSize: 16,
+    marginVertical: 5,
+  },
   timer: {
     fontSize: 32,
-    color: "#007bff",
     fontWeight: "bold",
+    color: "#007bff",
+    marginVertical: 10,
   },
-  nextTaskContainer: {
+  buttonsContainer: {
     marginTop: 20,
+    flexDirection: "column",
+    alignItems: "center",
   },
 });
 

@@ -7,7 +7,7 @@ const TaskInputScreen = ({ navigation, route }) => {
   const { taskToEdit } = route.params || {};
   const [taskName, setTaskName] = useState(taskToEdit?.taskName || "");
   const [duration, setDuration] = useState(taskToEdit?.duration?.toString() || "");
-  const [priority, setPriority] = useState(taskToEdit?.priority || "Medium"); // Default priority
+  const [priority, setPriority] = useState(taskToEdit?.priority || "Medium");
   const [category, setCategory] = useState(taskToEdit?.category || "");
 
   const saveTask = async () => {
@@ -22,6 +22,8 @@ const TaskInputScreen = ({ navigation, route }) => {
       duration: parseInt(duration, 10),
       priority,
       category,
+      start: new Date().toISOString(), // Valid start time in ISO format
+      end: new Date(Date.now() + parseInt(duration, 10) * 60000).toISOString(), // End time
       createdAt: taskToEdit?.createdAt || new Date().toISOString(),
     };
 
@@ -59,11 +61,7 @@ const TaskInputScreen = ({ navigation, route }) => {
       />
       <Text style={styles.label}>Priority:</Text>
       <View style={styles.pickerContainer}>
-        <Picker
-          selectedValue={priority}
-          onValueChange={(itemValue) => setPriority(itemValue)}
-          style={styles.picker}
-        >
+        <Picker selectedValue={priority} onValueChange={(itemValue) => setPriority(itemValue)}>
           <Picker.Item label="High" value="High" />
           <Picker.Item label="Medium" value="Medium" />
           <Picker.Item label="Low" value="Low" />
@@ -81,37 +79,16 @@ const TaskInputScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#fff",
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 15,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 10,
-  },
+  container: { flex: 1, padding: 20, backgroundColor: "#fff" },
+  header: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+  input: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 5, marginBottom: 15 },
+  label: { fontSize: 16, marginBottom: 10 },
   pickerContainer: {
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 5,
     marginBottom: 15,
-    overflow: "hidden", // Ensures consistent styling
-  },
-  picker: {
-    height: Platform.OS === "ios" ? 200 : 50,
-    width: "100%",
+    overflow: "hidden",
   },
 });
 

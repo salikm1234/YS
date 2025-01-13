@@ -1,66 +1,51 @@
-import { toPacificTime } from './timeUtils';
+export const scheduleTasks = (tasks, constraints) => {
+  const { workInterval, breakInterval, busyTimes, sleepStart, sleepEnd } = constraints;
 
-/**
- * Schedule tasks into time blocks with Pomodoro breaks.
- * @param {Array} tasks - List of tasks to schedule.
- * @param {Object} preferences - User preferences (work/break intervals, busy times).
- */
-export const scheduleTasks = (tasks, preferences) => {
-  const { workInterval, breakInterval, busyTimes, sleepStart, sleepEnd } = preferences;
-
-  // Sort tasks by priority (e.g., High > Medium > Low) and duration
-  tasks.sort((a, b) => {
-    const priorityOrder = { High: 3, Medium: 2, Low: 1 };
-    return priorityOrder[b.priority] - priorityOrder[a.priority] || a.duration - b.duration;
-  });
-
-  const scheduledBlocks = [];
-  let currentTime = new Date().setHours(8, 0, 0, 0); // Start scheduling at 8 AM
-  let endOfDay = new Date().setHours(sleepStart, 0, 0, 0); // Sleep time (e.g., 10 PM)
+  const scheduledTasks = [];
+  let currentTime = new Date().setHours(sleepEnd, 0, 0, 0); // Start after wake-up time
 
   tasks.forEach((task) => {
     const taskStart = new Date(currentTime);
+    const taskEnd = new Date(taskStart.getTime() + task.duration * 60 * 1000);
 
-    // Check if the task fits before the sleep time
-    if (taskStart.getTime() + task.duration * 60000 > endOfDay) {
-      // If not, push it to the next day
-      currentTime = new Date().setHours(8, 0, 0, 0); // Reset to 8 AM the next day
-      endOfDay = new Date().setHours(sleepEnd, 0, 0, 0);
+    // Skip tasks during sleep hours
+    if (taskStart.getHours() >= sleepStart || taskEnd.getHours() < sleepEnd) {
+      currentTime = new Date(taskEnd).setHours(sleepEnd, 0, 0, 0); // Move to next wake-up time
+      return;
     }
 
-    // Skip any busy time slots
-    for (const busy of busyTimes) {
-      const busyStart = new Date(busy.start);
-      const busyEnd = new Date(busy.end);
-
-      if (taskStart >= busyStart && taskStart < busyEnd) {
-        currentTime = busyEnd.getTime();
-      }
-    }
-
-    // Schedule task
-    const taskEnd = currentTime + task.duration * 60000; // Add task duration in milliseconds
-    scheduledBlocks.push({
+    scheduledTasks.push({
       ...task,
-      start: toPacificTime(currentTime),
-      end: toPacificTime(taskEnd),
+      start: taskStart.toISOString(),
+      end: taskEnd.toISOString(),
     });
 
-    // Add Pomodoro break if there's enough time
-    const breakStart = taskEnd;
-    const breakEnd = breakStart + breakInterval * 60000;
+    currentTime = taskEnd.getTime(); // Move to end of task
 
-    if (breakEnd <= endOfDay) {
-      scheduledBlocks.push({
-        taskName: 'Break',
-        duration: breakInterval,
-        start: toPacificTime(breakStart),
-        end: toPacificTime(breakEnd),
+    // Schedule a break
+    const breakStart = new Date(currentTime);
+    const breakEnd = new Date(breakStart.getTime() + breakInterval * 60 * 1000);
+
+    if (
+      breakStart.getHours() < sleepStart &&
+      breakStart.getHours() >= sleepEnd &&
+      !busyTimes.some(
+        (busy) =>
+          breakStart.toISOString() >= busy.start &&
+          breakEnd.toISOString() < busy.end
+      )
+    ) {
+      scheduledTasks.push({
+        taskName: "Break",
+        start: breakStart.toISOString(),
+        end: breakEnd.toISOString(),
+        category: "Break",
+        id: `break-${breakStart.getTime()}`,
       });
-    }
 
-    currentTime = breakEnd; // Move current time to after the break
+      currentTime = breakEnd.getTime(); // Move to end of break
+    }
   });
 
-  return scheduledBlocks;
+  return scheduledTasks;
 };
